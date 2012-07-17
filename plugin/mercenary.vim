@@ -1,5 +1,7 @@
-" mercenary.vim - A Hg wrapper so awesome, it should be illegal
-" Maintainer:   Tim Pope <http://tpo.pe/>
+" mercenary.vim - An Hg wrapper so awesome, it should be hired to kill people
+"
+" Original Author:   Tim Pope <http://tpo.pe/>
+" Mercenary Author:  Jamie Wong <http://jamie-wong.com>
 " Version:      1.2
 " GetLatestVimScripts: 2975 1 :AutoInstall: mercenary.vim
 
