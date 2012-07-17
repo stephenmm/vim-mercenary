@@ -227,8 +227,10 @@ function! s:repo_configured_tree() dict abort
 endfunction
 
 function! s:repo_tree(...) dict abort
+  " Returns the path to the root of the repository
   if self.dir() =~# '/\.hg$'
-    let dir = self.dir()[0:-6]
+    " Take full path, then remove the /.hg from the end
+    let dir = self.dir()[0:-5]
   else
     let dir = self.configured_tree()
   endif
@@ -309,8 +311,10 @@ endfunction
 call s:add_methods('repo',['dir','configured_tree','tree','bare','translate','head'])
 
 function! s:repo_hg_command(...) dict abort
-  let hg = g:mercenary_hg_executable . ' --hg-dir='.s:shellesc(self.hg_dir)
-  return hg.join(map(copy(a:000),'" ".s:shellesc(v:val)'),'')
+  let hg = '(cd "' . fnamemodify(self.hg_dir, ':h') . '" &&'
+  let hg .= ' HGPLAIN=1 hg'
+  let hg .= join(map(copy(a:000),'" ".s:shellesc(v:val)'),'') . ')'
+  return hg
 endfunction
 
 function! s:repo_hg_chomp(...) dict abort
@@ -1525,6 +1529,7 @@ augroup mercenary_blame
 augroup END
 
 function! s:linechars(pattern)
+  " XXX(jlfwong) why are we replacing everything with dots?
   return strlen(s:gsub(matchstr(getline('.'), a:pattern), '.', '.'))
 endfunction
 
@@ -1533,16 +1538,28 @@ function! s:Blame(bang,line1,line2,count,args) abort
     if s:buffer().path() == ''
       call s:throw('file or blob required')
     endif
-    if filter(copy(a:args),'v:val !~# "^\\%(--root\|--show-name\\|-\\=\\%([ltwfs]\\|[MC]\\d*\\)\\+\\)$"') != []
-      call s:throw('unsupported option')
-    endif
+
+    " XXX(jlfwong): not sure which options to block
+    " if filter(copy(a:args),'v:val !~# "^\\%(--root\|--show-name\\|-\\=\\%([ltwfs]\\|[MC]\\d*\\)\\+\\)$"') != []
+    "   call s:throw('unsupported option')
+    " endif
+
+    " XXX(jlfwong): no idea what this is for
     call map(a:args,'s:sub(v:val,"^\\ze[^-]","-")')
-    let cmd = ['--no-pager', 'blame', '--show-number'] + a:args
-    if s:buffer().commit() =~# '\D\|..'
-      let cmd += [s:buffer().commit()]
-    else
-      let cmd += ['--contents', '-']
-    endif
+
+    " let cmd = ['--no-pager', 'blame', '--show-number'] + a:args
+
+    " Include the changeset, local rev number, author, and short date in the
+    " blame.
+    let cmd = ['blame', '--changeset', '--number', '--user', '--date', '--q'] + a:args
+
+    " XXX(jlfwong): no idea what this is
+    " if s:buffer().commit() =~# '\D\|..'
+    "   let cmd += [s:buffer().commit()]
+    " else
+    "   let cmd += ['--contents', '-']
+    " endif
+
     let basecmd = escape(call(s:repo().hg_command,cmd+['--',s:buffer().path()],s:repo()),'!')
     try
       let cd = exists('*haslocaldir') && haslocaldir() ? 'lcd ' : 'cd '
@@ -1555,6 +1572,7 @@ function! s:Blame(bang,line1,line2,count,args) abort
       else
         let error = resolve(tempname())
         let temp = error.'.mercenaryblame'
+        echom '%write !('.basecmd.' > '.temp.') >& '.error
         if &shell =~# 'csh'
           silent! execute '%write !('.basecmd.' > '.temp.') >& '.error
         else
@@ -1592,11 +1610,17 @@ function! s:Blame(bang,line1,line2,count,args) abort
         execute top
         normal! zt
         execute current
-        execute "vertical resize ".(s:linechars('.\{-\}\d\ze\s\+\d\+)')+1)
+
+        " Resize the window so we show all of the information, but none of the
+        " content (the content is shown in the real editing buffer)
+        execute "vertical resize ".(s:linechars('[^:]*:')-1)
         setlocal nomodified nomodifiable nonumber scrollbind nowrap foldcolumn=0 nofoldenable filetype=mercenaryblame
         if exists('+relativenumber')
           setlocal norelativenumber
         endif
+
+        " TODO(jlfwong): Figure out what all of these do and think about
+        " supporting them
         nnoremap <buffer> <silent> q    :exe substitute('bdelete<Bar>'.bufwinnr(b:mercenary_blamed_bufnr).' wincmd w','<Bar>-1','','')<CR>
         nnoremap <buffer> <silent> gq   :exe substitute('bdelete<Bar>'.bufwinnr(b:mercenary_blamed_bufnr).' wincmd w<Bar>if expand("%:p") =~# "^mercenary:[\\/][\\/]"<Bar>Gedit<Bar>endif','<Bar>-1','','')<CR>
         nnoremap <buffer> <silent> <CR> :<C-U>exe <SID>BlameJump('')<CR>
@@ -1700,28 +1724,42 @@ endfunction
 
 function! s:BlameSyntax() abort
   let b:current_syntax = 'mercenaryblame'
-  syn match MercenaryblameBoundary "^\^"
-  syn match MercenaryblameBlank                      "^\s\+\s\@=" nextgroup=mercenaryblameAnnotation,mercenaryblameOriginalFile,mercenaryblameOriginalLineNumber skipwhite
-  syn match MercenaryblameHash       "\%(^\^\=\)\@<=\x\{7,40\}\>" nextgroup=mercenaryblameAnnotation,mercenaryblameOriginalLineNumber,mercenaryblameOriginalFile skipwhite
-  syn match MercenaryblameUncommitted "\%(^\^\=\)\@<=0\{7,40\}\>" nextgroup=mercenaryblameAnnotation,mercenaryblameOriginalLineNumber,mercenaryblameOriginalFile skipwhite
-  syn region MercenaryblameAnnotation matchgroup=mercenaryblameDelimiter start="(" end="\%( \d\+\)\@<=)" contained keepend oneline
-  syn match MercenaryblameTime "[0-9:/+-][0-9:/+ -]*[0-9:/+-]\%( \+\d\+)\)\@=" contained containedin=mercenaryblameAnnotation
-  syn match MercenaryblameLineNumber         " \@<=\d\+)\@=" contained containedin=mercenaryblameAnnotation
-  syn match MercenaryblameOriginalFile       " \%(\f\+\D\@<=\|\D\@=\f\+\)\%(\%(\s\+\d\+\)\=\s\%((\|\s*\d\+)\)\)\@=" contained nextgroup=mercenaryblameOriginalLineNumber,mercenaryblameAnnotation skipwhite
-  syn match MercenaryblameOriginalLineNumber " \@<=\d\+\%(\s(\)\@=" contained nextgroup=mercenaryblameAnnotation skipwhite
-  syn match MercenaryblameOriginalLineNumber " \@<=\d\+\%(\s\+\d\+)\)\@=" contained nextgroup=mercenaryblameShort skipwhite
-  syn match MercenaryblameShort              "\d\+)" contained contains=mercenaryblameLineNumber
-  syn match MercenaryblameNotCommittedYet "(\@<=Not Committed Yet\>" contained containedin=mercenaryblameAnnotation
-  hi def link MercenaryblameBoundary           Keyword
-  hi def link MercenaryblameHash               Identifier
-  hi def link MercenaryblameUncommitted        Function
-  hi def link MercenaryblameTime               PreProc
-  hi def link MercenaryblameLineNumber         Number
-  hi def link MercenaryblameOriginalFile       String
-  hi def link MercenaryblameOriginalLineNumber Float
-  hi def link MercenaryblameShort              mercenaryblameDelimiter
-  hi def link MercenaryblameDelimiter          Delimiter
-  hi def link MercenaryblameNotCommittedYet    Comment
+
+  " TODO(jlfwong): Make this more flexible in case the user throws in additional
+  " arguments to the blame (or at least block the additional arguments to
+  " Blame())
+  syn match MercenaryblameBoundary  "^\^"
+  syn match MercenaryblameBlank     "^\s\+\s\@=" nextgroup=MercenaryblameAuthor skipwhite
+  syn match MercenaryblameAuthor    "\w\+" nextgroup=MercenaryblameNumber skipwhite
+  syn match MercenaryblameNumber    "\d\+" nextgroup=MercenaryblameChangeset skipwhite
+  syn match MercenaryblameChangeset "[a-f0-9]\{12\}" nextgroup=MercenaryblameDate skipwhite
+  syn match MercenaryblameDate      "[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}"
+  hi def link MercenaryblameAuthor    Keyword
+  hi def link MercenaryblameNumber    Number
+  hi def link MercenaryblameChangeset Identifier
+  hi def link MercenaryblameDate      PreProc
+
+  " syn match MercenaryblameBlank    "^\s\+\s\@=" nextgroup=mercenaryblameAnnotation,mercenaryblameOriginalFile,mercenaryblameOriginalLineNumber skipwhite
+  " syn match MercenaryblameHash       "\%(^\^\=\)\@<=\x\{7,40\}\>" nextgroup=mercenaryblameAnnotation,mercenaryblameOriginalLineNumber,mercenaryblameOriginalFile skipwhite
+  " syn match MercenaryblameUncommitted "\%(^\^\=\)\@<=0\{7,40\}\>" nextgroup=mercenaryblameAnnotation,mercenaryblameOriginalLineNumber,mercenaryblameOriginalFile skipwhite
+  " syn region MercenaryblameAnnotation matchgroup=mercenaryblameDelimiter start="(" end="\%( \d\+\)\@<=)" contained keepend oneline
+  " syn match MercenaryblameTime "[0-9:/+-][0-9:/+ -]*[0-9:/+-]\%( \+\d\+)\)\@=" contained containedin=mercenaryblameAnnotation
+  " syn match MercenaryblameLineNumber         " \@<=\d\+)\@=" contained containedin=mercenaryblameAnnotation
+  " syn match MercenaryblameOriginalFile       " \%(\f\+\D\@<=\|\D\@=\f\+\)\%(\%(\s\+\d\+\)\=\s\%((\|\s*\d\+)\)\)\@=" contained nextgroup=mercenaryblameOriginalLineNumber,mercenaryblameAnnotation skipwhite
+  " syn match MercenaryblameOriginalLineNumber " \@<=\d\+\%(\s(\)\@=" contained nextgroup=mercenaryblameAnnotation skipwhite
+  " syn match MercenaryblameOriginalLineNumber " \@<=\d\+\%(\s\+\d\+)\)\@=" contained nextgroup=mercenaryblameShort skipwhite
+  " syn match MercenaryblameShort              "\d\+)" contained contains=mercenaryblameLineNumber
+  " syn match MercenaryblameNotCommittedYet "(\@<=Not Committed Yet\>" contained containedin=mercenaryblameAnnotation
+  " hi def link MercenaryblameBoundary           Keyword
+  " hi def link MercenaryblameHash               Identifier
+  " hi def link MercenaryblameUncommitted        Function
+  " hi def link MercenaryblameTime               PreProc
+  " hi def link MercenaryblameLineNumber         Number
+  " hi def link MercenaryblameOriginalFile       String
+  " hi def link MercenaryblameOriginalLineNumber Float
+  " hi def link MercenaryblameShort              mercenaryblameDelimiter
+  " hi def link MercenaryblameDelimiter          Delimiter
+  " hi def link MercenaryblameNotCommittedYet    Comment
 endfunction
 
 " }}}1
