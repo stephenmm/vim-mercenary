@@ -84,7 +84,10 @@ endfunction
 
 let s:repo_cache = {}
 function! s:repo(...)
-
+  " Retrieves a Repo instance. If an argument is passed, it is interpreted as
+  " the root directory of the hg repo (i.e. what `hg root` would output if run
+  " anywhere inside the repository. Otherwise, the repository containing the
+  " file in the current buffer is used.
   if !a:0
     return s:buffer().repo()
   endif
@@ -168,24 +171,21 @@ function! s:Buffer.setvar(var, value) dict abort
   return setbufvar(self.bufnr(), a:var, a:value)
 endfunction
 
-" XXX(jlfwong) unused
 function! s:Buffer.repo() dict abort
   return s:repo(s:extract_hg_root_dir(self.path()))
 endfunction
 
 function! s:Buffer.onwinleave(cmd) dict abort
-  let self._winleave = a:cmd
+  call setwinvar(bufwinnr(self.bufnr()), 'mercenary_bufwinleave', a:cmd)
 endfunction
 
-function! s:Buffer.winleave() dict abort
-  if has_key(self, '_winleave')
-    execute self._winleave
-  endif
+function! s:Buffer_winleave(bufnr) abort
+  execute getwinvar(bufwinnr(a:bufnr), 'mercenary_bufwinleave')
 endfunction
 
 augroup mercenary_buffer
   autocmd!
-  autocmd BufWinLeave * call s:buffer(expand("<abuf>")).winleave()
+  autocmd BufWinLeave * call s:Buffer_winleave(expand('<abuf>'))
 augroup END
 
 " }}}1
