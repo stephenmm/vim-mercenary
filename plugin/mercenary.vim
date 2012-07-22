@@ -91,8 +91,7 @@ function! s:repo(...)
 
   let root_dir = a:1
   if !has_key(s:repo_cache, root_dir)
-    let repo = s:Repo.new(root_dir)
-    let s:repo_cache[root_dir] = repo
+    let s:repo_cache[root_dir] = s:Repo.new(root_dir)
   endif
 
   return s:repo_cache[root_dir]
@@ -123,9 +122,17 @@ endfunction
 " }}}1
 " Buffer {{{1
 
+let s:buffer_cache = {}
 function! s:buffer(...)
-  let bufnr = bufnr(a:0 ? a:1 : '%')
-  return s:Buffer.new(bufnr)
+  " Retrieves a Buffer instance. If an argument is passed, it is interpreted as
+  " the buffer number. Otherwise the buffer number of the active buffer is used.
+  let bufnr = a:0 ? a:1 : bufnr('%')
+
+  if !has_key(s:buffer_cache, bufnr)
+    let s:buffer_cache[bufnr] = s:Buffer.new(bufnr)
+  endif
+
+  return s:buffer_cache[bufnr]
 endfunction
 
 let s:Buffer = {}
@@ -137,10 +144,10 @@ function! s:Buffer.new(number) dict abort
 endfunction
 
 function! s:Buffer.path() dict abort
-  return fnamemodify(bufname(self.number()), ":p")
+  return fnamemodify(bufname(self.bufnr()), ":p")
 endfunction
 
-function! s:Buffer.number() dict abort
+function! s:Buffer.bufnr() dict abort
   return self["_number"]
 endfunction
 
@@ -153,12 +160,12 @@ endfunction
 
 " XXX(jlfwong) unused
 function! s:Buffer.getvar(var) dict abort
-  return getbufvar(self.number(), a:var)
+  return getbufvar(self.bufnr(), a:var)
 endfunction
 
 " XXX(jlfwong) unused
 function! s:Buffer.setvar(var, value) dict abort
-  return setbufvar(self.number(), a:var, a:value)
+  return setbufvar(self.bufnr(), a:var, a:value)
 endfunction
 
 " XXX(jlfwong) unused
@@ -166,10 +173,28 @@ function! s:Buffer.repo() dict abort
   return s:repo(s:extract_hg_root_dir(self.path()))
 endfunction
 
+function! s:Buffer.onwinleave(cmd) dict abort
+  let self._winleave = a:cmd
+endfunction
+
+function! s:Buffer.winleave() dict abort
+  if has_key(self, '_winleave')
+    execute self._winleave
+  endif
+endfunction
+
+augroup mercenary_buffer
+  autocmd!
+  autocmd BufWinLeave * call s:buffer(expand("<abuf>")).winleave()
+augroup END
+
 " }}}1
 " HGblame
 
 function! s:Blame() abort
+  " TODO(jlfwong): hg blame doesn't list uncommitted changes, which can result
+  " in misalignment if the file has been modified. Figure out a way to fix this.
+
   let hg_args = ['blame', '--changeset', '--number', '--user', '--date', '-q']
   let hg_args += ['--', s:buffer().path()]
   let hg_blame_command = call(s:repo().hg_command, hg_args, s:repo())
@@ -181,35 +206,45 @@ function! s:Blame() abort
   " Write the blame output to a .mercenaryblame file in a temp folder somewhere
   silent! execute '!' . hg_blame_command . ' > ' . outfile . ' 2> ' . errfile
 
-  let bufnr = s:buffer().number()
+  " Remember the bufnr that :HGblame was invoked in
+  let source_bufnr = s:buffer().bufnr()
 
-  " let restore = 'call setwinvar(bufwinnr('.bufnr.'),"&scrollbind",0)'
-  " if &l:wrap
-  "   let restore .= '|call setwinvar(bufwinnr('.bufnr.'),"&wrap",1)'
-  " endif
-  " if &l:foldenable
-  "   let restore .= '|call setwinvar(bufwinnr('.bufnr.'),"&foldenable",1)'
-  " endif
+  " Save the settings in the main buffer to be overridden so they can be
+  " restored when the buffer is closed
+  let restore = 'call setwinvar(bufwinnr(' . source_bufnr . '), "&scrollbind", 0)'
+  if &l:wrap
+    let restore .= '|call setwinvar(bufwinnr(' . source_bufnr . '), "&wrap", 1)'
+  endif
+  if &l:foldenable
+    let restore .= '|call setwinvar(bufwinnr(' . source_bufnr . '), "&foldenable", 1)'
+  endif
+
+  " Line number of the first visible line in the window + &scrolloff
+  let top = line('w0') + &scrolloff
+  " Line number of the cursor
+  let current = line('.')
+
   setlocal scrollbind nowrap nofoldenable
   exe 'keepalt leftabove vsplit ' . outfile
   setlocal nomodified nomodifiable nonumber scrollbind nowrap foldcolumn=0 nofoldenable filetype=mercenaryblame
 
-  " TODO(jlfwong): Resizing and restoration
-  " Resize the window so we show all of the information, but none of the
-  " content (the content is shown in the real editing buffer)
-  " execute "vertical resize ".(s:linechars('[^:]*:')-1)
+  " When the current buffer containing the blame leaves the window, restore the
+  " settings on the source window.
+  call s:buffer().onwinleave(restore)
 
-  " TODO(jlfwong): Figure out what this is doing - something about syncronizing
-  " the top line numbers for scrollbind?
-  let top = line('w0') + &scrolloff
-  let current = line('.')
+  " Synchronize the window position and cursor position between the blame buffer
+  " and the code buffer.
+  " Execute the line number as a command, focusing on that line (e.g. :23) to
+  " synchronize the buffer scroll positions.
   execute top
   normal! zt
+  " Synchronize the cursor position.
   execute current
   syncbind
 
+  " Resize the window so we show all of the blame information, but none of the
+  " code (the code is shown in the editing buffer :HGblame was invoked in).
   let blame_column_count = strlen(matchstr(getline('.'), '[^:]*:')) - 1
-  echom 'bcc: ' . blame_column_count
   execute "vertical resize " . blame_column_count
 endfunction
 
