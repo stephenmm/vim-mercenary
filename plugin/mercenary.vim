@@ -189,7 +189,7 @@ augroup mercenary_buffer
 augroup END
 
 " }}}1
-" HGblame
+" HGblame {{{1
 
 function! s:Blame() abort
   " TODO(jlfwong): hg blame doesn't list uncommitted changes, which can result
@@ -255,6 +255,25 @@ augroup mercenary_blame
   autocmd BufReadPost *.mercenaryblame setfiletype mercenaryblame
 augroup END
 
+" }}}1
+" HGcat {{{1
+
+function! s:Cat(rev, path) abort
+  let args = ['cat', '--rev', a:rev, a:path]
+  let hg_cat_command = call(s:repo().hg_command, args, s:repo())
+
+  let temppath = resolve(tempname())
+  let outfile = temppath . fnamemodify(a:path, ':t')
+  let errfile = temppath . '.err'
+
+  echom hg_cat_command
+  silent! execute '!' . hg_cat_command . ">" . outfile . ' 2> ' . errfile
+
+  exe 'vsplit ' . outfile
+  setlocal nomodified nomodifiable readonly
+endfunction
+
+command! -nargs=* HGcat call s:Cat(<f-args>)
 " }}}1
 " Initialization {{{1
 
