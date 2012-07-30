@@ -271,34 +271,9 @@ endfunction
 
 command! -nargs=* HGcat call s:Cat(<f-args>)
 " }}}1
-" Initialization {{{1
 
+" Initialization and Routing {{{1
 let s:method_handlers = {}
-
-function! s:method_handlers.cat(rev, filepath) dict abort
-  " TODO(jlfwong): Error handling - (file not found, rev not fond)
-
-  let args = ['cat', '--rev', a:rev, a:filepath]
-  let hg_cat_command = call(s:repo().hg_command, args, s:repo())
-
-  let temppath = resolve(tempname())
-  let outfile = temppath . fnamemodify(a:filepath, ':t')
-  let errfile = temppath . '.err'
-
-  silent! execute '!' . hg_cat_command . ">" . outfile . ' 2> ' . errfile
-
-  silent! execute 'read ' . outfile
-  " :read dumps the output below the current line - so delete the first line
-  " (which will be empty)
-  0d
-
-  setlocal nomodified nomodifiable readonly
-
-  if &bufhidden ==# ''
-    " Delete the buffer when it becomes hidden
-    setlocal bufhidden=delete
-  endif
-endfunction
 
 function! s:route(path) abort
   let hg_root_dir = s:extract_hg_root_dir(a:path)
@@ -336,4 +311,30 @@ augroup mercenary
   autocmd BufNewFile,BufReadPost * call s:route(expand('<amatch>:p'))
 augroup END
 
+" }}}1
+" mercenary://cat:rev//filepath {{{1
+function! s:method_handlers.cat(rev, filepath) dict abort
+  " TODO(jlfwong): Error handling - (file not found, rev not fond)
+
+  let args = ['cat', '--rev', a:rev, a:filepath]
+  let hg_cat_command = call(s:repo().hg_command, args, s:repo())
+
+  let temppath = resolve(tempname())
+  let outfile = temppath . fnamemodify(a:filepath, ':t')
+  let errfile = temppath . '.err'
+
+  silent! execute '!' . hg_cat_command . ">" . outfile . ' 2> ' . errfile
+
+  silent! execute 'read ' . outfile
+  " :read dumps the output below the current line - so delete the first line
+  " (which will be empty)
+  0d
+
+  setlocal nomodified nomodifiable readonly
+
+  if &bufhidden ==# ''
+    " Delete the buffer when it becomes hidden
+    setlocal bufhidden=delete
+  endif
+endfunction
 " }}}1
