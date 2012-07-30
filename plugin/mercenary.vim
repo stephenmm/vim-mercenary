@@ -266,18 +266,7 @@ augroup END
 " HGcat {{{1
 
 function! s:Cat(rev, path) abort
-  let args = ['cat', '--rev', a:rev, a:path]
-  let hg_cat_command = call(s:repo().hg_command, args, s:repo())
-
-  let temppath = resolve(tempname())
-  let outfile = temppath . fnamemodify(a:path, ':t')
-  let errfile = temppath . '.err'
-
-  echom hg_cat_command
-  silent! execute '!' . hg_cat_command . ">" . outfile . ' 2> ' . errfile
-
-  exe 'vsplit ' . outfile
-  setlocal nomodified nomodifiable readonly
+  silent! execute 'vnew mercenary://' . s:repo().root_dir . '//cat:' . a:rev . '//' . a:path
 endfunction
 
 command! -nargs=* HGcat call s:Cat(<f-args>)
@@ -287,7 +276,28 @@ command! -nargs=* HGcat call s:Cat(<f-args>)
 let s:method_handlers = {}
 
 function! s:method_handlers.cat(rev, filepath) dict abort
-  call s:Cat(a:rev, a:filepath)
+  " TODO(jlfwong): Error handling - (file not found, rev not fond)
+
+  let args = ['cat', '--rev', a:rev, a:filepath]
+  let hg_cat_command = call(s:repo().hg_command, args, s:repo())
+
+  let temppath = resolve(tempname())
+  let outfile = temppath . fnamemodify(a:filepath, ':t')
+  let errfile = temppath . '.err'
+
+  silent! execute '!' . hg_cat_command . ">" . outfile . ' 2> ' . errfile
+
+  silent! execute 'read ' . outfile
+  " :read dumps the output below the current line - so delete the first line
+  " (which will be empty)
+  0d
+
+  setlocal nomodified nomodifiable readonly
+
+  if &bufhidden ==# ''
+    " Delete the buffer when it becomes hidden
+    setlocal bufhidden=delete
+  endif
 endfunction
 
 function! s:route(path) abort
@@ -295,9 +305,6 @@ function! s:route(path) abort
   if hg_root_dir == ''
     return
   endif
-
-  echom a:path
-  echom hg_root_dir
 
   let mercenary_spec = matchstr(s:shellslash(a:path), '\C^mercenary://.\{-\}//\zs.*')
 
