@@ -43,6 +43,13 @@ function! s:shellesc(arg) abort
   endif
 endfunction
 
+function! s:warn(str)
+  echohl WarningMsg
+  echomsg a:str
+  echohl None
+  let v:warningmsg = a:str
+endfunction
+
 " }}1
 " Mercenary Utilities {{{1
 
@@ -277,11 +284,42 @@ command! -nargs=* HGcat call s:Cat(<f-args>)
 " }}}1
 " Initialization {{{1
 
+let s:method_handlers = {}
+
+function! s:method_handlers.cat(rev, filepath) dict abort
+  call s:Cat(a:rev, a:filepath)
+endfunction
+
 function! s:route(path) abort
   let hg_root_dir = s:extract_hg_root_dir(a:path)
   if hg_root_dir == ''
     return
   endif
+
+  echom a:path
+  echom hg_root_dir
+
+  let mercenary_spec = matchstr(s:shellslash(a:path), '\C^mercenary://.\{-\}//\zs.*')
+
+  if mercenary_spec != ''
+    " Route the mercenary:// path
+    let method = matchstr(mercenary_spec, '\C.\{-\}\ze:')
+
+    " Arguments to the mercenary:// methods are delimited by //
+    let args = split(matchstr(mercenary_spec, '\C:\zs.*'), '//')
+
+    try
+      if has_key(s:method_handlers, method)
+        call call(s:method_handlers[method], args, s:method_handlers)
+      else
+        call s:warn('mercenary: unknown mercenary:// method ' . method)
+      endif
+    catch /^Vim\%((\a\+)\)\=:E118/
+      call s:warn("mercenary: Too many arguments to mercenary://" . method)
+    catch /^Vim\%((\a\+)\)\=:E119/
+      call s:warn("mercenary: Not enough argument to mercenary://" . method)
+    endtry
+  end
 
   call s:buffer().enable_mercenary_commands()
 endfunction
