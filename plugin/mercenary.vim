@@ -1,3 +1,9 @@
+" TODO(jlfwong):
+"   * HGdiff
+"   * Syntax highlighting for :HGshow
+"   * Documentation (doc/mercenary.vim)
+"   * Powerline integration
+
 if exists('g:loaded_mercenary') || &cp
   finish
 endif
@@ -201,6 +207,8 @@ augroup END
 function! s:Blame() abort
   " TODO(jlfwong): hg blame doesn't list uncommitted changes, which can result
   " in misalignment if the file has been modified. Figure out a way to fix this.
+  "
+  " TODO(jlfwong): Considering switching this to use mercenary://blame
 
   let hg_args = ['blame', '--changeset', '--number', '--user', '--date', '-q']
   let hg_args += ['--', s:buffer().path()]
@@ -253,6 +261,8 @@ function! s:Blame() abort
   " code (the code is shown in the editing buffer :HGblame was invoked in).
   let blame_column_count = strlen(matchstr(getline('.'), '[^:]*:')) - 1
   execute "vertical resize " . blame_column_count
+
+  " TODO(jlfwong): Maybe use winfixwidth to stop resizing of the blame window
 endfunction
 
 call s:add_command("HGblame call s:Blame()")
@@ -263,16 +273,8 @@ augroup mercenary_blame
 augroup END
 
 " }}}1
-" HGcat {{{1
-
-function! s:Cat(rev, path) abort
-  silent! execute 'vnew mercenary://' . s:repo().root_dir . '//cat:' . a:rev . '//' . a:path
-endfunction
-
-command! -nargs=* HGcat call s:Cat(<f-args>)
-" }}}1
-
 " Initialization and Routing {{{1
+
 let s:method_handlers = {}
 
 function! s:route(path) abort
@@ -312,7 +314,17 @@ augroup mercenary
 augroup END
 
 " }}}1
-" mercenary://cat:rev//filepath {{{1
+" HGcat {{{1
+
+function! s:Cat(rev, path) abort
+  silent! execute 'edit mercenary://' . s:repo().root_dir . '//cat:' . a:rev . '//' . a:path
+endfunction
+
+command! -nargs=+ HGcat call s:Cat(<f-args>)
+
+" }}}1
+" mercenary://root_dir//cat:rev//filepath {{{1
+
 function! s:method_handlers.cat(rev, filepath) dict abort
   " TODO(jlfwong): Error handling - (file not found, rev not fond)
 
@@ -320,7 +332,7 @@ function! s:method_handlers.cat(rev, filepath) dict abort
   let hg_cat_command = call(s:repo().hg_command, args, s:repo())
 
   let temppath = resolve(tempname())
-  let outfile = temppath . fnamemodify(a:filepath, ':t')
+  let outfile = temppath . '.out'
   let errfile = temppath . '.err'
 
   silent! execute '!' . hg_cat_command . ">" . outfile . ' 2> ' . errfile
@@ -337,4 +349,43 @@ function! s:method_handlers.cat(rev, filepath) dict abort
     setlocal bufhidden=delete
   endif
 endfunction
+
+" }}}1
+" HGshow {{{1
+
+function! s:Show(rev) abort
+  " TODO(jlfwong): DRY up the spec generation
+  silent! execute 'edit mercenary://' . s:repo().root_dir . '//show:' . a:rev
+endfunction
+
+command! -nargs=1 HGshow call s:Show(<f-args>)
+
+
+" }}}1
+" mercenary://root_dir//show:rev {{{1
+
+function! s:method_handlers.show(rev) dict abort
+  " TODO(jlfwong): DRY this up w/ method_handlers.cat
+  "
+  let args = ['log', '--stat', '-vpr', a:rev]
+  let hg_log_command = call(s:repo().hg_command, args, s:repo())
+
+  let temppath = resolve(tempname())
+  let outfile = temppath . '.out'
+  let errfile = temppath . '.err'
+
+  silent! execute '!' . hg_log_command . ">" . outfile . ' 2> ' . errfile
+
+  silent! execute 'read ' . outfile
+  0d
+
+  setlocal nomodified nomodifiable readonly
+  setlocal filetype=diff
+
+  if &bufhidden ==# ''
+    " Delete the buffer when it becomes hidden
+    setlocal bufhidden=delete
+  endif
+endfunction
+
 " }}}1
