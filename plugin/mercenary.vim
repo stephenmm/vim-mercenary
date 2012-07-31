@@ -92,6 +92,12 @@ function! s:extract_hg_root_dir(path) abort
   return ''
 endfunction
 
+function! s:gen_mercenary_path(method, ...) abort
+  let merc_path = 'mercenary://' . s:repo().root_dir . '//' . a:method . ':'
+  let merc_path .= join(a:000, '//')
+  return merc_path
+endfunction
+
 " }}}1
 " Repo {{{1
 
@@ -125,13 +131,11 @@ function! s:Repo.hg_command(...) dict abort
   " Return a full hg command to be executed as a string.
   "
   " All arguments passed are translated into hg commandline arguments.
-  let cmd = '('
-  let cmd .= 'cd ' . self.root_dir
+  let cmd = 'cd ' . self.root_dir
   " HGPLAIN is an environment variable that's supposed to override any settings
   " that will mess with the hg command
   let cmd .= ' && HGPLAIN=1 ' . g:mercenary_hg_executable
   let cmd .= ' ' . join(map(copy(a:000), 's:shellesc(v:val)'), ' ')
-  let cmd .= ')'
   return cmd
 endfunction
 
@@ -161,6 +165,10 @@ endfunction
 
 function! s:Buffer.path() dict abort
   return fnamemodify(bufname(self.bufnr()), ":p")
+endfunction
+
+function! s:Buffer.relpath() dict abort
+  return fnamemodify(self.path(), ':.')
 endfunction
 
 function! s:Buffer.bufnr() dict abort
@@ -317,7 +325,7 @@ augroup END
 " HGcat {{{1
 
 function! s:Cat(rev, path) abort
-  silent! execute 'edit mercenary://' . s:repo().root_dir . '//cat:' . a:rev . '//' . a:path
+  silent! execute 'edit ' . s:gen_mercenary_path('cat', a:rev, a:path)
 endfunction
 
 command! -nargs=+ HGcat call s:Cat(<f-args>)
@@ -354,11 +362,10 @@ endfunction
 " HGshow {{{1
 
 function! s:Show(rev) abort
-  " TODO(jlfwong): DRY up the spec generation
-  silent! execute 'edit mercenary://' . s:repo().root_dir . '//show:' . a:rev
+  silent! execute 'edit ' . s:gen_mercenary_path('show', a:rev)
 endfunction
 
-command! -nargs=1 HGshow call s:Show(<f-args>)
+call s:add_command("-nargs=1 HGshowe call s:Blame(<f-args>)")
 
 
 " }}}1
@@ -387,5 +394,29 @@ function! s:method_handlers.show(rev) dict abort
     setlocal bufhidden=delete
   endif
 endfunction
+
+" }}}1
+" HGdiff {{{1
+
+function! s:Diff() abort
+  let merc_p1_path = s:gen_mercenary_path('cat', 'p1()', s:buffer().relpath())
+
+  silent! execute 'keepalt leftabove vsplit ' . merc_p1_path
+  diffthis
+  wincmd p
+
+  let hg_parent_check_log_cmd = s:repo().hg_command('log', '--rev', 'p2()')
+
+  if system(hg_parent_check_log_cmd) != ''
+    let merc_p2_path = s:gen_mercenary_path('cat', 'p2()', s:buffer().relpath())
+    silent! execute 'keepalt rightbelow vsplit ' . merc_p2_path
+    diffthis
+    wincmd p
+  endif
+
+  diffthis
+endfunction
+
+call s:add_command("HGdiff call s:Diff()")
 
 " }}}1
