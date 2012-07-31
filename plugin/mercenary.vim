@@ -1,8 +1,8 @@
 " TODO(jlfwong):
-"   * HGdiff
 "   * Syntax highlighting for :HGshow
 "   * Documentation (doc/mercenary.vim)
 "   * Powerline integration
+"   * Autocompletion
 
 if exists('g:loaded_mercenary') || &cp
   finish
@@ -398,25 +398,37 @@ endfunction
 " }}}1
 " HGdiff {{{1
 
-function! s:Diff() abort
-  let merc_p1_path = s:gen_mercenary_path('cat', 'p1()', s:buffer().relpath())
+function! s:Diff(...) abort
+  if a:0 == 0
+    let merc_p1_path = s:gen_mercenary_path('cat', 'p1()', s:buffer().relpath())
 
-  silent! execute 'keepalt leftabove vsplit ' . merc_p1_path
-  diffthis
-  wincmd p
-
-  let hg_parent_check_log_cmd = s:repo().hg_command('log', '--rev', 'p2()')
-
-  if system(hg_parent_check_log_cmd) != ''
-    let merc_p2_path = s:gen_mercenary_path('cat', 'p2()', s:buffer().relpath())
-    silent! execute 'keepalt rightbelow vsplit ' . merc_p2_path
+    silent! execute 'keepalt leftabove vsplit ' . merc_p1_path
     diffthis
     wincmd p
-  endif
 
-  diffthis
+    let hg_parent_check_log_cmd = s:repo().hg_command('log', '--rev', 'p2()')
+
+    if system(hg_parent_check_log_cmd) != ''
+      let merc_p2_path = s:gen_mercenary_path('cat', 'p2()', s:buffer().relpath())
+      silent! execute 'keepalt rightbelow vsplit ' . merc_p2_path
+      diffthis
+      wincmd p
+    endif
+
+    diffthis
+  elseif a:0 == 1
+    let rev = a:1
+
+    let merc_path = s:gen_mercenary_path('cat', rev, s:buffer().relpath())
+
+    silent! execute 'keepalt leftabove vsplit ' . merc_path
+    diffthis
+    wincmd p
+
+    diffthis
+  endif
 endfunction
 
-call s:add_command("HGdiff call s:Diff()")
+call s:add_command("-nargs=? HGdiff call s:Diff(<f-args>)")
 
 " }}}1
