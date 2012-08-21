@@ -365,7 +365,7 @@ function! s:Show(rev) abort
   silent! execute 'edit ' . s:gen_mercenary_path('show', a:rev)
 endfunction
 
-call s:add_command("-nargs=1 HGshowe call s:Blame(<f-args>)")
+call s:add_command("-nargs=1 HGshow call s:Show(<f-args>)")
 
 
 " }}}1
