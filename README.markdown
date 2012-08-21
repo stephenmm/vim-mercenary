@@ -4,25 +4,18 @@ mercenary.vim
 I'm not going to lie to you; mercenary.vim may very well be the worst
 Mercurial wrapper of all time.
 
-I forked [vim-fugitive](https://github.com/tpope/vim-fugitive) and am very 
-slowly trying to get the most useful features of fugitive working for mercurial.  
-The first step of this was `:%s/Fugitive/Mercenary` and `:%s/git/hg`. Beyond 
-that, the going is slow, but it's slowly going. All the `:G____` commands have 
-been replaced by `:HG____` commands.
-
-This is a work in progress - most features are currently broken and will give 
-you unexpected behaviour. Currently working is:
-
-Vanilla `:HGblame`. Load up a file in a mercurial repository, then run 
-`:HGblame` with no arguments.
-
-
 Installation
 ------------
 
 If you don't have a preferred installation method, I recommend
-installing [pathogen.vim](https://github.com/tpope/vim-pathogen), and
-then simply copy and paste:
+installing [vundle](https://github.com/gmarik/vundle) and adding
+
+    Bundle 'phleet/vim-mercenary'
+
+to your `.vimrc` then running `:BundleInstall`.
+
+If you prefer [pathogen.vim](https://github.com/tpope/vim-pathogen), after 
+installing it, simply copy and paste:
 
     cd ~/.vim/bundle
     git clone git://github.com/phleet/vim-mercenary.git
@@ -32,7 +25,14 @@ Once help tags have been generated, you can view the manual with
 
 License
 -------
-Fugitive is (c) Tim Pope.  Distributed under the same terms as Vim itself.
-See `:help license`.
+Mercenary is (c) Jamie Wong.
 
-Mercurial modifications (c) Jamie Wong.
+Distributed under the same terms as Vim itself.  See `:help license`.
+
+Heavily inspired by vim-fugitive by Time Pope: 
+https://github.com/tpope/vim-fugitive
+
+This started out as a fork of fugitive, but I eventually discovered that the 
+differences between git and mercurial while minor in functionality are vast in 
+implementation. So I started from scratch, using fugitive's code as a reference 
+but re-implementing everything to be less of a monkey patch for mercurial.
