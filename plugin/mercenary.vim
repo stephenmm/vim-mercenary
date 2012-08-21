@@ -1,8 +1,10 @@
 " TODO(jlfwong):
 "   * Syntax highlighting for :HGshow
-"   * Documentation (doc/mercenary.vim)
 "   * Powerline integration
 "   * Autocompletion
+"   * Error handling
+"   * Make :HGcat {rev} % do something reasonable if you're already viewing
+"     a file at a specifi revision
 
 if exists('g:loaded_mercenary') || &cp
   finish
@@ -328,7 +330,7 @@ function! s:Cat(rev, path) abort
   silent! execute 'edit ' . s:gen_mercenary_path('cat', a:rev, a:path)
 endfunction
 
-command! -nargs=+ HGcat call s:Cat(<f-args>)
+call s:add_command("-nargs=+ HGcat call s:Cat(<f-args>)")
 
 " }}}1
 " mercenary://root_dir//cat:rev//filepath {{{1
