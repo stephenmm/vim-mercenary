@@ -5,14 +5,14 @@ License: Same terms as Vim itself (see |license|)
 
 Heavily inspired by vim-fugitive: https://github.com/tpope/vim-fugitive
 
-*INTRODUCTION*                                      *mercenary*
+INTRODUCTION                                    *mercenary*
 
 When editing a file inside a mercurial repository, the following commands will
 be made available to you.
 
-*COMMANDS*                                          *mercenary-commands*
+COMMANDS                                        *mercenary-commands*
 
-                                                  *mercenary-:HGblame*
+                                                *mercenary-:HGblame*
 :HGblame                    Blame the current file, showing the annotations in
                             a vertical split to the left. NOTE: if lines have
                             been added or deleted since the last revision, the
@@ -24,7 +24,7 @@ be made available to you.
 
                             :HGblame
 
-                                                  *mercenary-:HGshow*
+                                                *mercenary-:HGshow*
 :HGshow {rev}               Show the full commit message and diff for the
                             specified revision.
 
@@ -34,7 +34,7 @@ be made available to you.
                             :HGshow de8c6fb78d6b
                             :HGshow p1()
 
-                                                  *mercenary-:HGcat*
+                                                *mercenary-:HGcat*
 :HGcat {rev} {path}         Show the specified file at the specified revision.
 
                             Examples:
@@ -43,6 +43,7 @@ be made available to you.
                             :HGcat p1() app.yaml
                             :HGcat 42cbe67706ac %
 
+                                                *mercenary-:HGdiff*
 :HGdiff [rev]               Open up the current file at the specified revision
                             (p1() if not specified) in a vertical split, then
                             colorize the diff between the files.
@@ -55,5 +56,11 @@ be made available to you.
                             :HGdiff
                             :HGdiff .^2
                             :HGdiff 42cbe67706ac
+
+ABOUT                                           *mercenary-about*
+
+Grab the latest version or report a bug on GitHub:
+
+https://github.com/phleet/vim-mercenary
 
  vim:tw=78:et:ft=help:norl:
