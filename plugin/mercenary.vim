@@ -1,7 +1,12 @@
+" mercenary.vim - A mercurial wrapper so awesome, you should give it money
+" Maintainer:   Jamie Wong <http://jamie-wong.com/>
+" Version:      0.1
+
 " TODO(jlfwong):
+"   * Mappings in blame to open up :HGcat or :HGshow
 "   * Syntax highlighting for :HGshow
 "   * Powerline integration
-"   * Autocompletion
+"   * Better Autocompletion
 "   * Error handling
 "   * Make :HGcat {rev} % do something reasonable if you're already viewing
 "     a file at a specifi revision
@@ -212,7 +217,7 @@ augroup mercenary_buffer
 augroup END
 
 " }}}1
-" HGblame {{{1
+" :HGblame {{{1
 
 function! s:Blame() abort
   " TODO(jlfwong): hg blame doesn't list uncommitted changes, which can result
@@ -324,13 +329,13 @@ augroup mercenary
 augroup END
 
 " }}}1
-" HGcat {{{1
+" :HGcat {{{1
 
 function! s:Cat(rev, path) abort
   execute 'edit ' . s:gen_mercenary_path('cat', a:rev, a:path)
 endfunction
 
-call s:add_command("-nargs=+ HGcat call s:Cat(<f-args>)")
+call s:add_command("-nargs=+ -complete=file HGcat call s:Cat(<f-args>)")
 
 " }}}1
 " mercenary://root_dir//cat:rev//filepath {{{1
@@ -361,7 +366,7 @@ function! s:method_handlers.cat(rev, filepath) dict abort
 endfunction
 
 " }}}1
-" HGshow {{{1
+" :HGshow {{{1
 
 function! s:Show(rev) abort
   execute 'edit ' . s:gen_mercenary_path('show', a:rev)
@@ -398,7 +403,7 @@ function! s:method_handlers.show(rev) dict abort
 endfunction
 
 " }}}1
-" HGdiff {{{1
+" :HGdiff {{{1
 
 function! s:Diff(...) abort
   if a:0 == 0
