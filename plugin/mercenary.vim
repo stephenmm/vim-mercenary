@@ -327,7 +327,7 @@ augroup END
 " HGcat {{{1
 
 function! s:Cat(rev, path) abort
-  silent! execute 'edit ' . s:gen_mercenary_path('cat', a:rev, a:path)
+  execute 'edit ' . s:gen_mercenary_path('cat', a:rev, a:path)
 endfunction
 
 call s:add_command("-nargs=+ HGcat call s:Cat(<f-args>)")
@@ -345,7 +345,7 @@ function! s:method_handlers.cat(rev, filepath) dict abort
   let outfile = temppath . '.out'
   let errfile = temppath . '.err'
 
-  silent! execute '!' . hg_cat_command . ">" . outfile . ' 2> ' . errfile
+  silent! execute '!' . hg_cat_command . ' > ' . outfile . ' 2> ' . errfile
 
   silent! execute 'read ' . outfile
   " :read dumps the output below the current line - so delete the first line
@@ -364,7 +364,7 @@ endfunction
 " HGshow {{{1
 
 function! s:Show(rev) abort
-  silent! execute 'edit ' . s:gen_mercenary_path('show', a:rev)
+  execute 'edit ' . s:gen_mercenary_path('show', a:rev)
 endfunction
 
 call s:add_command("-nargs=1 HGshow call s:Show(<f-args>)")
@@ -375,7 +375,7 @@ call s:add_command("-nargs=1 HGshow call s:Show(<f-args>)")
 
 function! s:method_handlers.show(rev) dict abort
   " TODO(jlfwong): DRY this up w/ method_handlers.cat
-  "
+
   let args = ['log', '--stat', '-vpr', a:rev]
   let hg_log_command = call(s:repo().hg_command, args, s:repo())
 
@@ -383,7 +383,7 @@ function! s:method_handlers.show(rev) dict abort
   let outfile = temppath . '.out'
   let errfile = temppath . '.err'
 
-  silent! execute '!' . hg_log_command . ">" . outfile . ' 2> ' . errfile
+  silent! execute '!' . hg_log_command . ' > ' . outfile . ' 2> ' . errfile
 
   silent! execute 'read ' . outfile
   0d
