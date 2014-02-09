@@ -39,7 +39,7 @@ installing [NeoBundle](https://github.com/Shougo/neobundle.vim) and adding
 
     NeoBundle 'stephenmm/vim-mercenary'
 
-to your `.vimrc` then next time you start vim it will instal itself.
+to your `.vimrc` then next time you start vim it will install itself.
 
 If you prefer [pathogen.vim](https://github.com/tpope/vim-pathogen), after 
 installing it, simply copy and paste:
