@@ -18,7 +18,6 @@ endif
 let g:loaded_mercenary = 1
 if !exists('g:mercenary_hg_executable')
   let g:mercenary_hg_executable = 'hg'
-  "let g:mercenary_hg_executable = '/import/freetools/local/mercurial/v1.7.5_rhel6.4/linux/bin/hg'
 endif
 
 " VimL Utilities {{{1
@@ -252,8 +251,6 @@ function! s:Blame() abort
   echo hgroot
 
   let hg_args = ['blame', '--changeset', '--number', '--user', '--date', '-q']
-  "let hg_args += ['--', s:buffer().path()]
-  "let hg_args += ['--', fnamemodify(s:buffer().path(),':s?/import/rapid-dev2/smeckley/views-pcie_tb-hg-diff/??')]
   let hg_args += ['--', relpath]
   let hg_blame_command = call(s:repo().hg_command, hg_args, s:repo())
 
@@ -262,7 +259,7 @@ function! s:Blame() abort
   let errfile = temppath . '.err'
 
   " Write the blame output to a .mercenaryblame file in a temp folder somewhere
-  "silent! execute '!' . hg_blame_command . ' > ' . outfile . ' 2> ' . errfile   " Breaks tcsh 
+  "silent! execute '!' . hg_blame_command . ' > ' . outfile . ' 2> ' . errfile   " Breaks tcsh TODO -- use shell agnostic version
   silent! execute '!' . hg_blame_command . ' > ' . outfile
 
   " Remember the bufnr that :HGblame was invoked in
