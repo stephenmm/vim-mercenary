@@ -18,6 +18,7 @@ endif
 let g:loaded_mercenary = 1
 if !exists('g:mercenary_hg_executable')
   let g:mercenary_hg_executable = 'hg'
+  "let g:mercenary_hg_executable = '/import/freetools/local/mercurial/v1.7.5_rhel6.4/linux/bin/hg'
 endif
 
 " VimL Utilities {{{1
@@ -141,7 +142,8 @@ function! s:Repo.hg_command(...) dict abort
   let cmd = 'cd ' . self.root_dir
   " HGPLAIN is an environment variable that's supposed to override any settings
   " that will mess with the hg command
-  let cmd .= ' && HGPLAIN=1 ' . g:mercenary_hg_executable
+  "let cmd .= ' && HGPLAIN=1 ' . g:mercenary_hg_executable
+  let cmd .= ' && ' . g:mercenary_hg_executable
   let cmd .= ' ' . join(map(copy(a:000), 's:shellesc(v:val)'), ' ')
   return cmd
 endfunction
@@ -225,8 +227,34 @@ function! s:Blame() abort
   "
   " TODO(jlfwong): Considering switching this to use mercenary://blame
 
+
+  let hgroot = s:buffer().path()
+  let prev = ''
+  let relpath = ''
+  let seperator = ''
+
+  " Find the local hg root (usefull for subrepos)
+  while hgroot !=# prev
+    let dirpath = s:sub(hgroot, '[\/]$', '') . '/.hg'
+    let type = getftype(dirpath)
+    if type != ''
+      " File exists, stop here
+      break
+    endif
+    let prev = hgroot
+
+    " Move up a directory
+    let relpath = fnamemodify(hgroot, ':t').seperator.relpath
+    let hgroot = fnamemodify(hgroot, ':h')
+    let seperator = '/'
+  endwhile
+  echo relpath
+  echo hgroot
+
   let hg_args = ['blame', '--changeset', '--number', '--user', '--date', '-q']
-  let hg_args += ['--', s:buffer().path()]
+  "let hg_args += ['--', s:buffer().path()]
+  "let hg_args += ['--', fnamemodify(s:buffer().path(),':s?/import/rapid-dev2/smeckley/views-pcie_tb-hg-diff/??')]
+  let hg_args += ['--', relpath]
   let hg_blame_command = call(s:repo().hg_command, hg_args, s:repo())
 
   let temppath = resolve(tempname())
@@ -234,7 +262,8 @@ function! s:Blame() abort
   let errfile = temppath . '.err'
 
   " Write the blame output to a .mercenaryblame file in a temp folder somewhere
-  silent! execute '!' . hg_blame_command . ' > ' . outfile . ' 2> ' . errfile
+  "silent! execute '!' . hg_blame_command . ' > ' . outfile . ' 2> ' . errfile   " Breaks tcsh 
+  silent! execute '!' . hg_blame_command . ' > ' . outfile
 
   " Remember the bufnr that :HGblame was invoked in
   let source_bufnr = s:buffer().bufnr()
