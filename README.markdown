@@ -2,7 +2,11 @@ mercenary.vim
 ============
 
 I'm not going to lie to you; mercenary.vim may very well be the worst
-Mercurial wrapper of all time.
+Mercurial wrapper of all time.  
+
+This is my fork of Jamie Wong's great work. I needed to modify it
+slightly to work with subrepos. So far I have only got the HGblame
+working with subrepos.
 
 Show and Tell
 -------------
@@ -31,9 +35,9 @@ Installation
 ------------
 
 If you don't have a preferred installation method, I recommend
-installing [vundle](https://github.com/gmarik/vundle) and adding
+installing [NeoBundle](https://github.com/Shougo/neobundle.vim) and adding
 
-    Bundle 'phleet/vim-mercenary'
+    NeoBundle 'stephenmm/vim-mercenary'
 
 to your `.vimrc` then running `:BundleInstall`.
 
@@ -41,7 +45,7 @@ If you prefer [pathogen.vim](https://github.com/tpope/vim-pathogen), after
 installing it, simply copy and paste:
 
     cd ~/.vim/bundle
-    git clone git://github.com/phleet/vim-mercenary.git
+    git clone git://github.com/stephenmm/vim-mercenary.git
 
 Once help tags have been generated, you can view the manual with
 `:help mercenary`.
