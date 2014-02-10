@@ -13,7 +13,7 @@ Show and Tell
 
 Here are some screenshots showing off some the mercenary's dirty work:
 
-`:HGblame` will annotate the current file with the blame.
+`:HGblame` will annotate the current file with the blame. [Every Line of Code is Always Documented](http://mislav.uniqpath.com/2014/02/hidden-documentation/)
 
 ![:HGblame](http://i.imgur.com/O7WUC.png)
 
